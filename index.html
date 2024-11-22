@@ -72,6 +72,13 @@
       }
     });
 
+    // スマホタッチ対応（画面全体をタッチしたら音が変わる）
+    document.addEventListener("touchstart", (event) => {
+      // 除外モードボタンがタッチされた場合は何もしない
+      if (event.target === modeToggle) return;
+      noteDisplay.textContent = getRandomNote();
+    });
+
     // シャープ・フラット除外モード切り替え
     modeToggle.addEventListener("click", (event) => {
       excludeSharpsAndFlats = !excludeSharpsAndFlats;
