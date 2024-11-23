@@ -74,7 +74,7 @@
     let progressTimeout = null; // プログレスバーのリセット制御用
     let lastNote = null; // 直前に出た音を記録
     let isPaused = false; // 一時停止状態
-    let remainingTime = 3000; // 残り時間（ms）
+    let remainingTime = 4000; // 残り時間（ms）
 
     const noteDisplay = document.getElementById("note");
     const modeToggle = document.getElementById("modeToggle");
@@ -107,7 +107,7 @@
       progressBar.style.transition = `width ${remainingTime / 1000}s linear`;
       progressBar.style.width = "0%"; // プログレスバーを左端まで進行
       progressTimeout = setTimeout(() => {
-        remainingTime = 3000; // リセット
+        remainingTime = 4000; // リセット
         changeNote(); // 次の音に切り替え
       }, remainingTime);
     }
@@ -115,7 +115,7 @@
     // プログレスバーリセット
     function resetProgressBar() {
       clearTimeout(progressTimeout);
-      remainingTime = 3000; // 残り時間をリセット
+      remainingTime = 4000; // 残り時間をリセット
       progressBar.style.transition = "none";
       progressBar.style.width = "100%"; // プログレスバーを右端にリセット
       setTimeout(() => {
