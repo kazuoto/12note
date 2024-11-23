@@ -48,10 +48,10 @@
       border-radius: 10px;
       margin-top: 20px;
       overflow: hidden;
+      display: none; /* デフォルトで非表示 */
     }
     .progress-bar {
       height: 100%;
-      width: 100%;
       background-color: #4CAF50; /* プログレスバーは緑色 */
       transition: none; /* アニメーションを手動制御 */
     }
@@ -61,7 +61,7 @@
   <h1 id="note">A</h1>
   <button id="modeToggle" class="mode-toggle exclude">♯♭除外モード: OFF</button>
   <button id="autoToggle" class="mode-toggle auto">自動モード: OFF</button>
-  <div class="progress-bar-container">
+  <div id="progressContainer" class="progress-bar-container">
     <div id="progressBar" class="progress-bar"></div>
   </div>
 
@@ -72,12 +72,14 @@
     let isAutoMode = false; // 自動モードの状態
     let autoInterval = null; // 自動モードのインターバル
     let progressTimeout = null; // プログレスバーのリセット制御用
-    let progressValue = 100; // プログレスバーの値
     let lastNote = null; // 直前に出た音を記録
+    let isPaused = false; // 一時停止状態
+    let remainingTime = 3000; // 残り時間（ms）
 
     const noteDisplay = document.getElementById("note");
     const modeToggle = document.getElementById("modeToggle");
     const autoToggle = document.getElementById("autoToggle");
+    const progressContainer = document.getElementById("progressContainer");
     const progressBar = document.getElementById("progressBar");
 
     // ランダム選択関数（直前の音を除外）
@@ -95,34 +97,53 @@
     // 音の切り替え処理
     function changeNote() {
       noteDisplay.textContent = getRandomNote();
-      resetProgressBar(); // プログレスバーをリセット
+      if (isAutoMode && !isPaused) {
+        resetProgressBar(); // 自動モードONかつ再生中の場合のみプログレスバーをリセット
+      }
     }
 
     // プログレスバーのアニメーションを開始
     function startProgressBar() {
-      progressBar.style.transition = "none";
-      progressBar.style.width = "100%"; // 一度右端にリセット
-      setTimeout(() => {
-        progressBar.style.transition = "width 3s linear";
-        progressBar.style.width = "0%";
-      }, 50); // 少し時間を置いてアニメーション開始
+      progressBar.style.transition = `width ${remainingTime / 1000}s linear`;
+      progressBar.style.width = "0%"; // プログレスバーを左端まで進行
+      progressTimeout = setTimeout(() => {
+        remainingTime = 3000; // リセット
+        changeNote(); // 次の音に切り替え
+      }, remainingTime);
     }
 
     // プログレスバーリセット
     function resetProgressBar() {
       clearTimeout(progressTimeout);
-      startProgressBar();
+      remainingTime = 3000; // 残り時間をリセット
+      progressBar.style.transition = "none";
+      progressBar.style.width = "100%"; // プログレスバーを右端にリセット
+      setTimeout(() => {
+        startProgressBar();
+      }, 50); // 少し遅れてアニメーション開始
+    }
+
+    // プログレスバーを一時停止
+    function pauseProgressBar() {
+      clearTimeout(progressTimeout);
+      const computedStyle = window.getComputedStyle(progressBar);
+      const currentWidth = parseFloat(computedStyle.width) / progressBar.parentElement.offsetWidth;
+      remainingTime *= currentWidth; // 現在の進行状況を計算
+      progressBar.style.transition = "none"; // アニメーション停止
+      progressBar.style.width = `${currentWidth * 100}%`; // 現在位置を保持
+    }
+
+    // プログレスバーを再開
+    function resumeProgressBar() {
+      startProgressBar(); // プログレスバーを再開
     }
 
     // 自動モード開始
     function startAutoMode() {
       if (!autoInterval) {
+        isPaused = false;
+        progressContainer.style.display = "block"; // プログレスバーを表示
         changeNote(); // 新しい音をすぐに表示
-        startProgressBar(); // プログレスバー開始
-        autoInterval = setInterval(() => {
-          changeNote();
-          startProgressBar();
-        }, 3000); // 3秒ごとに音を切り替え
       }
     }
 
@@ -132,7 +153,8 @@
         clearInterval(autoInterval);
         autoInterval = null;
       }
-      progressBar.style.transition = "none";
+      isPaused = false; // 停止時は一時停止解除
+      progressContainer.style.display = "none"; // プログレスバーを非表示
     }
 
     // スペースキーでの操作
@@ -140,13 +162,15 @@
       if (event.code === "Space") {
         event.preventDefault();
         if (isAutoMode) {
-          if (autoInterval) {
-            stopAutoMode(); // 一時停止
+          if (isPaused) {
+            isPaused = false;
+            resumeProgressBar();
           } else {
-            startAutoMode(); // 再開時は次の音に進む
+            isPaused = true;
+            pauseProgressBar();
           }
         } else {
-          changeNote();
+          changeNote(); // 自動モードOFFの場合は音を切り替える
         }
       }
     });
