@@ -79,7 +79,7 @@
       border-radius: 10px;
       margin: 20px auto;
       overflow: hidden;
-      display: none; /* デフォルトで非表示 */
+      display: none;
     }
 
     .progress-bar {
@@ -89,7 +89,7 @@
     }
 
     .time-buttons {
-      display: none; /* デフォルトで非表示 */
+      display: none;
       justify-content: center;
       gap: 10px;
     }
@@ -111,8 +111,8 @@
     <div class="center">
       <h1 id="note">A</h1>
       <div class="mode-buttons">
-        <button id="modeToggle" class="mode-toggle exclude">♯♭除外モード: OFF (Eキー)</button>
-        <button id="autoToggle" class="mode-toggle auto">自動モード: OFF (Aキー)</button>
+        <button id="modeToggle" class="mode-toggle exclude">♯♭除外</button>
+        <button id="autoToggle" class="mode-toggle auto">自動切り替え</button>
       </div>
     </div>
     <div class="additional-content">
@@ -137,7 +137,7 @@
     let recentNotes = [];
     let isPaused = false;
     let remainingTime = 5000;
-    let elapsedRatio = 0; // プログレスバー再開の比率
+    let elapsedRatio = 0;
     const timeButtons = document.querySelectorAll("#timeButtons button");
 
     const noteDisplay = document.getElementById("note");
@@ -206,18 +206,33 @@
       startProgressBar();
     }
 
+    function toggleExcludeMode() {
+      excludeSharpsAndFlats = !excludeSharpsAndFlats;
+      modeToggle.classList.toggle("active", excludeSharpsAndFlats);
+    }
+
+    function toggleAutoMode() {
+      isAutoMode = !isAutoMode;
+      autoToggle.classList.toggle("active", isAutoMode);
+      if (!isAutoMode) {
+        stopAutoMode();
+      } else {
+        startAutoMode();
+      }
+    }
+
+    function stopAutoMode() {
+      clearTimeout(progressTimeout);
+      elapsedRatio = 0;
+      progressContainer.style.display = "none";
+      timeButtonsContainer.style.display = "none";
+    }
+
     function startAutoMode() {
       isPaused = false;
       progressContainer.style.display = "block";
       timeButtonsContainer.style.display = "flex";
       changeNote();
-    }
-
-    function stopAutoMode() {
-      clearTimeout(progressTimeout);
-      elapsedRatio = 0; // 一時停止位置をリセット
-      progressContainer.style.display = "none";
-      timeButtonsContainer.style.display = "none";
     }
 
     function handleArrowKeyNavigation(direction) {
@@ -229,11 +244,20 @@
       if (newIndex < 0) newIndex = buttonsArray.length - 1;
       if (newIndex >= buttonsArray.length) newIndex = 0;
 
-      timeButtons.forEach((btn) => btn.classList.remove("selected"));
+      timeButtons.forEach(btn => btn.classList.remove("selected"));
       buttonsArray[newIndex].classList.add("selected");
       remainingTime = parseInt(buttonsArray[newIndex].dataset.time);
       resetProgressBar();
     }
+
+    timeButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        timeButtons.forEach(btn => btn.classList.remove("selected"));
+        button.classList.add("selected");
+        remainingTime = parseInt(button.dataset.time);
+        resetProgressBar();
+      });
+    });
 
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
@@ -254,28 +278,14 @@
       } else if (event.code === "KeyA") {
         toggleAutoMode();
       } else if (event.code === "ArrowRight") {
-        handleArrowKeyNavigation(1); // →キーで次へ
+        handleArrowKeyNavigation(1);
       } else if (event.code === "ArrowLeft") {
-        handleArrowKeyNavigation(-1); // ←キーで前へ
+        handleArrowKeyNavigation(-1);
       }
     });
 
-    function toggleExcludeMode() {
-      excludeSharpsAndFlats = !excludeSharpsAndFlats;
-      modeToggle.textContent = `♯♭除外モード: ${excludeSharpsAndFlats ? "ON" : "OFF"} (Eキー)`;
-      modeToggle.classList.toggle("active", excludeSharpsAndFlats);
-    }
-
-    function toggleAutoMode() {
-      isAutoMode = !isAutoMode;
-      autoToggle.textContent = `自動モード: ${isAutoMode ? "ON" : "OFF"} (Aキー)`;
-      autoToggle.classList.toggle("active", isAutoMode);
-      if (!isAutoMode) {
-        stopAutoMode();
-      } else {
-        startAutoMode();
-      }
-    }
+    modeToggle.addEventListener("click", toggleExcludeMode);
+    autoToggle.addEventListener("click", toggleAutoMode);
   </script>
 </body>
 </html>
