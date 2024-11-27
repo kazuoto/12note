@@ -14,25 +14,29 @@
       display: flex;
       justify-content: center;
       align-items: center;
+      flex-direction: column;
     }
 
     .container {
       position: relative;
-      width: 100%;
-      height: 100%;
-    }
-
-    .center {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       text-align: center;
+      margin-top: 10%;
     }
 
     h1 {
       font-size: 12rem;
       margin: 0;
+      position: relative;
+    }
+
+    .string-number {
+      position: absolute;
+      top: -40%;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8rem;
+      color: #888;
+      display: none;
     }
 
     .mode-buttons {
@@ -50,26 +54,36 @@
       transition: background-color 0.3s ease;
     }
 
-    .mode-toggle {
+    /* ボタンごとに初期状態の色 */
+    #modeToggle {
       background-color: #ddd;
       color: #333;
     }
 
-    .mode-toggle.active.exclude {
-      background-color: #2196F3;
+    #autoToggle {
+      background-color: #ddd;
+      color: #222;
+    }
+
+    #stringToggle {
+      background-color: #ddd;
+      color: #444;
+    }
+
+    /* ボタンごとのアクティブ状態の色 */
+    #modeToggle.active {
+      background-color: #FF7FFF; /* 赤系 */
       color: white;
     }
 
-    .mode-toggle.active.auto {
-      background-color: #FF9800;
+    #autoToggle.active {
+      background-color: #4CAF50; /* 緑系 */
       color: white;
     }
 
-    .additional-content {
-      position: absolute;
-      bottom: 5%;
-      width: 100%;
-      text-align: center;
+    #stringToggle.active {
+      background-color: #4242FF; /* 青系 */
+      color: white;
     }
 
     .progress-bar-container {
@@ -85,7 +99,8 @@
     .progress-bar {
       height: 100%;
       background-color: #4CAF50;
-      transition: none;
+      width: 100%;
+      transition: width linear;
     }
 
     .time-buttons {
@@ -104,27 +119,34 @@
       background-color: #4CAF50;
       color: white;
     }
+
+    .bottom-controls {
+      position: absolute;
+      bottom: 5%;
+      width: 100%;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="center">
-      <h1 id="note">A</h1>
-      <div class="mode-buttons">
-        <button id="modeToggle" class="mode-toggle exclude">♯♭除外</button>
-        <button id="autoToggle" class="mode-toggle auto">自動切り替え</button>
-      </div>
+    <h1 id="note">A</h1>
+    <div id="stringNumber" class="string-number">1</div>
+    <div class="mode-buttons">
+      <button id="modeToggle" class="mode-toggle">♯♭除外</button>
+      <button id="autoToggle" class="mode-toggle">自動切り替え</button>
+      <button id="stringToggle" class="mode-toggle">弦指定</button>
     </div>
-    <div class="additional-content">
-      <div id="progressContainer" class="progress-bar-container">
-        <div id="progressBar" class="progress-bar"></div>
-      </div>
-      <div id="timeButtons" class="time-buttons">
-        <button data-time="5000" class="selected">5秒</button>
-        <button data-time="10000">10秒</button>
-        <button data-time="15000">15秒</button>
-        <button data-time="20000">20秒</button>
-      </div>
+  </div>
+  <div class="bottom-controls">
+    <div id="progressContainer" class="progress-bar-container">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <div id="timeButtons" class="time-buttons">
+      <button data-time="5000" class="selected">5秒</button>
+      <button data-time="10000">10秒</button>
+      <button data-time="15000">15秒</button>
+      <button data-time="20000">20秒</button>
     </div>
   </div>
 
@@ -133,77 +155,47 @@
     const simpleNotes = ["A", "B", "C", "D", "E", "F", "G"];
     let excludeSharpsAndFlats = false;
     let isAutoMode = false;
-    let progressTimeout = null;
-    let recentNotes = [];
+    let isStringMode = false;
     let isPaused = false;
+    let recentNotes = [];
+    let progressTimeout = null;
     let remainingTime = 5000;
     let elapsedRatio = 0;
-    const timeButtons = document.querySelectorAll("#timeButtons button");
 
     const noteDisplay = document.getElementById("note");
+    const stringDisplay = document.getElementById("stringNumber");
     const modeToggle = document.getElementById("modeToggle");
     const autoToggle = document.getElementById("autoToggle");
+    const stringToggle = document.getElementById("stringToggle");
     const progressContainer = document.getElementById("progressContainer");
     const progressBar = document.getElementById("progressBar");
     const timeButtonsContainer = document.getElementById("timeButtons");
+    const timeButtons = document.querySelectorAll("#timeButtons button");
 
     function getRandomNote() {
       const notes = excludeSharpsAndFlats ? simpleNotes : allNotes;
       let newNote;
-
       do {
-        const randomIndex = Math.floor(Math.random() * notes.length);
-        newNote = notes[randomIndex];
+        newNote = notes[Math.floor(Math.random() * notes.length)];
       } while (recentNotes.includes(newNote));
-
       recentNotes.push(newNote);
-      if (recentNotes.length > 2) {
-        recentNotes.shift();
-      }
-
+      if (recentNotes.length > 2) recentNotes.shift();
       return newNote;
+    }
+
+    function getRandomString() {
+      return Math.floor(Math.random() * 6) + 1;
     }
 
     function changeNote() {
       noteDisplay.textContent = getRandomNote();
-      if (isAutoMode && !isPaused) {
-        resetProgressBar();
+      if (isStringMode) {
+        stringDisplay.textContent = getRandomString();
+        stringDisplay.style.display = "block";
+      } else {
+        stringDisplay.style.display = "none";
       }
-    }
-
-    function startProgressBar() {
-      progressBar.style.transition = `width ${remainingTime * (1 - elapsedRatio)}ms linear`;
-      progressBar.style.width = "0%";
-      progressTimeout = setTimeout(() => {
-        elapsedRatio = 0;
-        changeNote();
-      }, remainingTime * (1 - elapsedRatio));
-    }
-
-    function resetProgressBar() {
-      clearTimeout(progressTimeout);
-      progressBar.style.transition = "none";
-      progressBar.style.width = "100%";
-      elapsedRatio = 0;
-      setTimeout(() => {
-        if (isAutoMode && !isPaused) {
-          startProgressBar();
-        }
-      }, 50);
-    }
-
-    function pauseProgressBar() {
-      clearTimeout(progressTimeout);
-      const computedStyle = window.getComputedStyle(progressBar);
-      const currentWidth = parseFloat(computedStyle.width);
-      const totalWidth = parseFloat(progressBar.parentNode.offsetWidth);
-      elapsedRatio = 1 - currentWidth / totalWidth;
-      progressBar.style.transition = "none";
-      progressBar.style.width = `${(1 - elapsedRatio) * 100}%`;
-    }
-
-    function resumeProgressBar() {
-      startProgressBar();
+      resetProgressBar();
     }
 
     function toggleExcludeMode() {
@@ -214,25 +206,64 @@
     function toggleAutoMode() {
       isAutoMode = !isAutoMode;
       autoToggle.classList.toggle("active", isAutoMode);
-      if (!isAutoMode) {
-        stopAutoMode();
-      } else {
-        startAutoMode();
-      }
+      if (isAutoMode) startAutoMode();
+      else stopAutoMode();
     }
 
-    function stopAutoMode() {
-      clearTimeout(progressTimeout);
-      elapsedRatio = 0;
-      progressContainer.style.display = "none";
-      timeButtonsContainer.style.display = "none";
+    function toggleStringMode() {
+      isStringMode = !isStringMode;
+      stringToggle.classList.toggle("active", isStringMode);
+      if (isStringMode) {
+        stringDisplay.textContent = getRandomString();
+        stringDisplay.style.display = "block";
+      } else {
+        stringDisplay.style.display = "none";
+      }
     }
 
     function startAutoMode() {
       isPaused = false;
+      elapsedRatio = 0;
       progressContainer.style.display = "block";
       timeButtonsContainer.style.display = "flex";
       changeNote();
+    }
+
+    function stopAutoMode() {
+      clearTimeout(progressTimeout);
+      progressContainer.style.display = "none";
+      timeButtonsContainer.style.display = "none";
+    }
+
+    function resetProgressBar() {
+      if (isPaused) return;
+      clearTimeout(progressTimeout);
+      progressBar.style.transition = "none";
+      progressBar.style.width = "100%";
+      setTimeout(() => {
+        progressBar.style.transition = `width ${remainingTime}ms linear`;
+        progressBar.style.width = "0%";
+        progressTimeout = setTimeout(changeNote, remainingTime);
+      }, 50);
+    }
+
+    function pauseProgressBar() {
+      clearTimeout(progressTimeout);
+      const computedStyle = window.getComputedStyle(progressBar);
+      const currentWidth = parseFloat(computedStyle.width);
+      const totalWidth = parseFloat(progressContainer.offsetWidth);
+      elapsedRatio = 1 - currentWidth / totalWidth;
+      progressBar.style.transition = "none";
+      progressBar.style.width = `${currentWidth}px`;
+      isPaused = true;
+    }
+
+    function resumeProgressBar() {
+      isPaused = false;
+      const remainingTimeAdjusted = remainingTime * (1 - elapsedRatio);
+      progressBar.style.transition = `width ${remainingTimeAdjusted}ms linear`;
+      progressBar.style.width = "0%";
+      progressTimeout = setTimeout(changeNote, remainingTimeAdjusted);
     }
 
     function handleArrowKeyNavigation(direction) {
@@ -247,7 +278,7 @@
       timeButtons.forEach(btn => btn.classList.remove("selected"));
       buttonsArray[newIndex].classList.add("selected");
       remainingTime = parseInt(buttonsArray[newIndex].dataset.time);
-      resetProgressBar();
+      if (isAutoMode && !isPaused) resetProgressBar();
     }
 
     timeButtons.forEach(button => {
@@ -255,19 +286,34 @@
         timeButtons.forEach(btn => btn.classList.remove("selected"));
         button.classList.add("selected");
         remainingTime = parseInt(button.dataset.time);
-        resetProgressBar();
+        if (isAutoMode && !isPaused) resetProgressBar();
       });
+    });
+
+    modeToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleExcludeMode();
+      modeToggle.blur(); // フォーカスを外す
+    });
+
+    autoToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleAutoMode();
+      autoToggle.blur(); // フォーカスを外す
+    });
+
+    stringToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      toggleStringMode();
+      stringToggle.blur(); // フォーカスを外す
     });
 
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
-        event.preventDefault();
         if (isAutoMode) {
           if (isPaused) {
-            isPaused = false;
             resumeProgressBar();
           } else {
-            isPaused = true;
             pauseProgressBar();
           }
         } else {
@@ -277,15 +323,14 @@
         toggleExcludeMode();
       } else if (event.code === "KeyA") {
         toggleAutoMode();
+      } else if (event.code === "KeyS") {
+        toggleStringMode();
       } else if (event.code === "ArrowRight") {
         handleArrowKeyNavigation(1);
       } else if (event.code === "ArrowLeft") {
         handleArrowKeyNavigation(-1);
       }
     });
-
-    modeToggle.addEventListener("click", toggleExcludeMode);
-    autoToggle.addEventListener("click", toggleAutoMode);
   </script>
 </body>
 </html>
