@@ -154,7 +154,7 @@
     </div>
     <div class="string-buttons">
       <button id="stringToggle1" class="mode-toggle">弦指定 (1～6)</button>
-      <button id="stringToggle2" class="mode-toggle">弦指定 (2～5)</button>
+      <button id="stringToggle2" class="mode-toggle">弦指定 (2～4)</button>
     </div>
   </div>
   <div class="bottom-controls">
@@ -210,8 +210,8 @@
       do {
         if (range === "1-6") {
           newStringNumber = Math.floor(Math.random() * 6) + 1;
-        } else if (range === "2-5") {
-          newStringNumber = Math.floor(Math.random() * 4) + 2;
+        } else if (range === "2-4") {
+          newStringNumber = Math.floor(Math.random() * 3) + 2;
         }
       } while (newStringNumber === lastStringNumber);
       lastStringNumber = newStringNumber;
@@ -229,7 +229,7 @@
         stringDisplay.textContent = getRandomString("1-6");
         stringDisplay.style.display = "block";
       } else if (isStringMode2) {
-        stringDisplay.textContent = getRandomString("2-5");
+        stringDisplay.textContent = getRandomString("2-4");
         stringDisplay.style.display = "block";
       } else {
         stringDisplay.style.display = "none";
