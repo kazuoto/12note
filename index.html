@@ -2,112 +2,94 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ランダム音選択アプリ</title>
   <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body { height: 100%; }
+
     body {
       margin: 0;
-      height: 100vh;
       background-color: #f5f5f5;
       font-family: Arial, sans-serif;
       overflow: hidden;
+      display: grid;
+      grid-template-columns: 1fr minmax(260px, 38vw);
+      height: 100vh;
+      height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 左：音名表示（タップで切り替え） */
+    .display {
+      position: relative;
       display: flex;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-    }
-
-    .container {
-      position: relative;
-      text-align: center;
-      margin-top: 10%;
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
     h1 {
-      font-size: 12rem;
+      font-size: min(45vh, 22vw);
       margin: 0;
-      position: relative;
+      line-height: 1;
     }
 
     .string-number {
       position: absolute;
-      top: -40%;
+      top: 4%;
       left: 50%;
       transform: translateX(-50%);
-      font-size: 8rem;
+      font-size: min(22vh, 11vw);
+      line-height: 1;
       color: #888;
       display: none;
     }
 
-    .mode-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-top: 20px;
-    }
-
-    .string-buttons {
+    /* 右：操作パネル */
+    .side {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      margin-top: 20px;
+      justify-content: center;
+      gap: 2vh;
+      padding: 2vh 16px;
+      min-height: 0;
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5vh;
     }
 
     button {
-      font-size: 1.5rem;
-      padding: 10px 20px;
+      font-size: clamp(0.85rem, 4vh, 1.4rem);
+      padding: 1.2vh 12px;
+      min-height: 44px;
       cursor: pointer;
       border: none;
+      border-radius: 8px;
       transition: background-color 0.3s ease;
+      touch-action: manipulation;
+      width: 100%;
     }
 
-    #modeToggle {
-      background-color: #ddd;
-      color: #333;
-    }
+    .mode-toggle { background-color: #ddd; color: #333; }
 
-    #autoToggle {
-      background-color: #ddd;
-      color: #222;
-    }
-
-    #stringToggle1 {
-      background-color: #ddd;
-      color: #444;
-    }
-
-    #stringToggle2 {
-      background-color: #ddd;
-      color: #444;
-    }
-
-    #modeToggle.active {
-      background-color: #FF8DA1;
-      color: #F5F5F5;
-    }
-
-    #autoToggle.active {
-      background-color: #90EE90;
-      color: #F5F5F5;
-    }
-
-    #stringToggle1.active {
-      background-color: #87CEEB;
-      color: #F5F5F5;
-    }
-
-    #stringToggle2.active {
-      background-color: #87CEEB;
-      color: #F5F5F5;
-    }
+    #modeToggle.active { background-color: #FF8DA1; color: #F5F5F5; }
+    #autoToggle.active { background-color: #90EE90; color: #F5F5F5; }
+    #stringToggle1.active,
+    #stringToggle2.active { background-color: #87CEEB; color: #F5F5F5; }
 
     .progress-bar-container {
-      width: 80%;
-      height: 20px;
+      width: 100%;
+      height: 16px;
       background-color: #ddd;
       border-radius: 10px;
-      margin: 20px auto;
       overflow: hidden;
       display: none;
     }
@@ -122,13 +104,17 @@
     .time-buttons {
       display: none;
       justify-content: center;
-      gap: 10px;
+      gap: 6px;
     }
 
     .time-buttons button {
-      padding: 10px 15px;
-      font-size: 1rem;
-      border-radius: 5px;
+      flex: 1;
+      width: auto;
+      padding: 1vh 4px;
+      font-size: clamp(0.8rem, 3.6vh, 1rem);
+      border-radius: 6px;
+      background-color: #ddd;
+      color: #333;
     }
 
     .time-buttons button.selected {
@@ -136,28 +122,31 @@
       color: white;
     }
 
-    .bottom-controls {
-      position: absolute;
-      bottom: 5%;
-      width: 100%;
-      text-align: center;
+    /* 縦画面：上下に積む */
+    @media (orientation: portrait) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+      }
+      h1 { font-size: min(35vh, 40vw); }
+      .string-number { font-size: min(15vh, 18vw); }
+      .side { padding: 12px 16px 20px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="display" id="display">
     <h1 id="note">A</h1>
     <div id="stringNumber" class="string-number">1</div>
-    <div class="mode-buttons">
+  </div>
+
+  <div class="side">
+    <div class="button-group">
       <button id="modeToggle" class="mode-toggle">♯♭除外 (E)</button>
       <button id="autoToggle" class="mode-toggle">自動切り替え (A)</button>
-    </div>
-    <div class="string-buttons">
       <button id="stringToggle1" class="mode-toggle">弦指定 (1～6)</button>
       <button id="stringToggle2" class="mode-toggle">弦指定 (2～4)</button>
     </div>
-  </div>
-  <div class="bottom-controls">
     <div id="progressContainer" class="progress-bar-container">
       <div id="progressBar" class="progress-bar"></div>
     </div>
@@ -184,6 +173,7 @@
     let elapsedRatio = 0;
 
     const noteDisplay = document.getElementById("note");
+    const displayArea = document.getElementById("display");
     const stringDisplay = document.getElementById("stringNumber");
     const modeToggle = document.getElementById("modeToggle");
     const autoToggle = document.getElementById("autoToggle");
@@ -312,6 +302,16 @@
       progressTimeout = setTimeout(changeNote, remainingTimeAdjusted);
     }
 
+    // スペースキー／画面タップ共通の動作
+    function handleMainAction() {
+      if (isAutoMode) {
+        if (isPaused) resumeProgressBar();
+        else pauseProgressBar();
+      } else {
+        changeNote();
+      }
+    }
+
     function handleArrowKeyNavigation(direction) {
       const selectedButton = document.querySelector(".time-buttons button.selected");
       const buttonsArray = Array.from(timeButtons);
@@ -336,41 +336,37 @@
       });
     });
 
+    // 音名エリアをタップ：手動モードなら次の音、自動モードなら一時停止/再開
+    displayArea.addEventListener("click", handleMainAction);
+
     modeToggle.addEventListener("click", (e) => {
       e.preventDefault();
       toggleExcludeMode();
-      modeToggle.blur(); // フォーカスを外す
+      modeToggle.blur();
     });
 
     autoToggle.addEventListener("click", (e) => {
       e.preventDefault();
       toggleAutoMode();
-      autoToggle.blur(); // フォーカスを外す
+      autoToggle.blur();
     });
 
     stringToggle1.addEventListener("click", (e) => {
       e.preventDefault();
       toggleStringMode1();
-      stringToggle1.blur(); // フォーカスを外す
+      stringToggle1.blur();
     });
 
     stringToggle2.addEventListener("click", (e) => {
       e.preventDefault();
       toggleStringMode2();
-      stringToggle2.blur(); // フォーカスを外す
+      stringToggle2.blur();
     });
 
     document.addEventListener("keydown", (event) => {
       if (event.code === "Space") {
-        if (isAutoMode) {
-          if (isPaused) {
-            resumeProgressBar();
-          } else {
-            pauseProgressBar();
-          }
-        } else {
-          changeNote();
-        }
+        event.preventDefault();
+        handleMainAction();
       } else if (event.code === "KeyE") {
         toggleExcludeMode();
       } else if (event.code === "KeyA") {
