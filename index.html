@@ -171,6 +171,32 @@
     let progressTimeout = null;
     let remainingTime = 5000;
     let elapsedRatio = 0;
+    let wakeLock = null;
+
+    // 画面スリープ防止（自動切り替え中のみ）
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      } catch (err) {
+        console.warn("Wake Lock取得失敗:", err);
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (wakeLock) {
+        try { await wakeLock.release(); } catch (err) {}
+        wakeLock = null;
+      }
+    }
+
+    // タブを離れるとロックが自動解除されるので、戻ってきたら再取得
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && isAutoMode && !wakeLock) {
+        requestWakeLock();
+      }
+    });
 
     const noteDisplay = document.getElementById("note");
     const displayArea = document.getElementById("display");
@@ -262,6 +288,7 @@
       elapsedRatio = 0;
       progressContainer.style.display = "block";
       timeButtonsContainer.style.display = "flex";
+      requestWakeLock();
       changeNote();
     }
 
@@ -269,6 +296,7 @@
       clearTimeout(progressTimeout);
       progressContainer.style.display = "none";
       timeButtonsContainer.style.display = "none";
+      releaseWakeLock();
     }
 
     function resetProgressBar() {
