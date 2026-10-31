@@ -11,17 +11,66 @@
 
     body {
       margin: 0;
+      height: 100vh;
+      height: 100dvh;
       background-color: #f5f5f5;
       font-family: Arial, sans-serif;
       overflow: hidden;
-      display: grid;
-      grid-template-columns: 1fr minmax(280px, 40vw);
-      height: 100vh;
-      height: 100dvh;
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
       user-select: none;
       -webkit-user-select: none;
     }
+
+    /* 画面（メニュー／音当て／ポジション）の切り替え */
+    .screen {
+      display: none;
+      height: 100%;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      grid-template-columns: 1fr minmax(280px, 40vw);
+    }
+    .screen.active { display: grid; }
+
+    #menuScreen.active {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 3vh;
+    }
+    #menuScreen h2 { margin: 0; font-size: clamp(1.1rem, 5vh, 1.8rem); color: #555; }
+    .menu-btn {
+      width: min(70vw, 420px);
+      font-size: clamp(1.1rem, 6vh, 2rem);
+      padding: 2vh 12px;
+      min-height: 56px;
+      color: #333;
+    }
+    #menuGuess { background-color: #87CEEB; }
+    #menuPosition { background-color: #90EE90; }
+
+    .back-btn {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 2;
+      width: auto;
+      min-height: 36px;
+      padding: 6px 12px;
+      font-size: clamp(0.8rem, 3vh, 1rem);
+      background-color: rgba(0, 0, 0, 0.08);
+      color: #333;
+    }
+
+    /* ポジションモードの表示 */
+    .display.col { flex-direction: column; gap: 1vh; }
+    .col h1 { font-size: min(38vh, 20vw); }
+    .pos-label {
+      font-size: min(13vh, 6.5vw);
+      line-height: 1.1;
+      color: #888;
+      white-space: nowrap;
+    }
+    #posExcludeToggle.active { background-color: #FF8DA1; color: #F5F5F5; }
+    #posAutoToggle.active { background-color: #90EE90; color: #F5F5F5; }
 
     /* 左：音名表示（タップで切り替え） */
     .display {
@@ -143,10 +192,12 @@
 
     /* 縦画面：上下に積む */
     @media (orientation: portrait) {
-      body {
+      .screen {
         grid-template-columns: 1fr;
         grid-template-rows: 1fr auto;
       }
+      .col h1 { font-size: min(25vh, 36vw); }
+      .pos-label { font-size: min(7vh, 10vw); }
       h1 { font-size: min(35vh, 40vw); }
       .string-number { font-size: min(15vh, 18vw); }
       .fret-display { font-size: min(8vh, 12vw); }
@@ -155,7 +206,15 @@
   </style>
 </head>
 <body>
+  <div id="menuScreen" class="screen active">
+    <h2>モードを選択</h2>
+    <button id="menuGuess" class="menu-btn">音当てモード</button>
+    <button id="menuPosition" class="menu-btn">ポジションモード</button>
+  </div>
+
+  <div id="guessScreen" class="screen">
   <div class="display" id="display">
+    <button id="guessBack" class="back-btn">← 戻る</button>
     <h1 id="note">A</h1>
     <div id="stringNumber" class="string-number">1</div>
     <div id="fretDisplay" class="fret-display"></div>
@@ -181,6 +240,31 @@
       <button data-time="20000">20秒</button>
     </div>
   </div>
+  </div>
+
+  <div id="positionScreen" class="screen">
+    <div class="display col" id="posDisplay">
+      <button id="posBack" class="back-btn">← 戻る</button>
+      <div id="posQuality" class="pos-label">メジャー</div>
+      <h1 id="posNote">A</h1>
+      <div id="posPosition" class="pos-label">ポジション①</div>
+    </div>
+    <div class="side">
+      <div class="button-group">
+        <button id="posExcludeToggle" class="mode-toggle">♯♭除外 (E)</button>
+        <button id="posAutoToggle" class="mode-toggle">自動切り替え (A)</button>
+      </div>
+      <div id="posProgressContainer" class="progress-bar-container">
+        <div id="posProgressBar" class="progress-bar"></div>
+      </div>
+      <div id="posTimeButtons" class="time-buttons">
+        <button data-time="5000" class="selected">5秒</button>
+        <button data-time="10000">10秒</button>
+        <button data-time="15000">15秒</button>
+        <button data-time="20000">20秒</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const allNotes = ["A", "A#", "Bb", "B", "C", "C#", "Db", "D", "D#", "Eb", "E", "F", "F#", "Gb", "G"];
@@ -196,6 +280,14 @@
     let remainingTime = 5000;
     let elapsedRatio = 0;
     let wakeLock = null;
+    let currentMode = "menu";
+
+    function showScreen(name) {
+      currentMode = name;
+      ["menu", "guess", "position"].forEach(n => {
+        document.getElementById(n + "Screen").classList.toggle("active", n === name);
+      });
+    }
     let isFretMode = false;
     let lastFret = null;
     const fretRanges = ["1～5F", "5～9F", "9～12F", "12～17F"];
@@ -220,7 +312,7 @@
 
     // タブを離れるとロックが自動解除されるので、戻ってきたら再取得
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && isAutoMode && !wakeLock) {
+      if (document.visibilityState === "visible" && (isAutoMode || (window.isPosAuto && window.isPosAuto())) && !wakeLock) {
         requestWakeLock();
       }
     });
@@ -454,6 +546,7 @@
     });
 
     document.addEventListener("keydown", (event) => {
+      if (currentMode !== "guess") return;
       if (event.code === "Space") {
         event.preventDefault();
         handleMainAction();
@@ -473,6 +566,140 @@
         handleArrowKeyNavigation(-1);
       }
     });
+
+    // ===== モード選択・戻るボタン =====
+    document.getElementById("menuGuess").addEventListener("click", () => showScreen("guess"));
+    document.getElementById("menuPosition").addEventListener("click", () => {
+      showScreen("position");
+      window.posEnter();
+    });
+    document.getElementById("guessBack").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (isAutoMode) toggleAutoMode();
+      showScreen("menu");
+    });
+
+    // ===== ポジションモード =====
+    (function () {
+      const qualities = ["メジャー", "マイナー"];
+      const positions = ["ポジション①", "ポジション②"];
+      let exclude = false, auto = false, paused = false, timer = null;
+      let remaining = 5000, elapsed = 0, recent = [];
+      const $ = (id) => document.getElementById(id);
+      const note = $("posNote"), quality = $("posQuality"), position = $("posPosition");
+      const excludeBtn = $("posExcludeToggle"), autoBtn = $("posAutoToggle");
+      const bar = $("posProgressBar"), barBox = $("posProgressContainer"), timeBox = $("posTimeButtons");
+      const timeBtns = Array.from(timeBox.querySelectorAll("button"));
+      const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+      function randomNote() {
+        const notes = exclude ? simpleNotes : allNotes;
+        let n;
+        do { n = pick(notes); } while (recent.includes(n));
+        recent.push(n);
+        if (recent.length > 2) recent.shift();
+        return n;
+      }
+
+      function change() {
+        note.textContent = randomNote();
+        quality.textContent = pick(qualities);
+        position.textContent = pick(positions);
+        resetBar();
+      }
+
+      function resetBar() {
+        clearTimeout(timer);
+        if (!auto || paused) return;
+        bar.style.transition = "none";
+        bar.style.width = "100%";
+        timer = setTimeout(() => {
+          bar.style.transition = `width ${remaining}ms linear`;
+          bar.style.width = "0%";
+          timer = setTimeout(change, remaining);
+        }, 50);
+      }
+
+      function pause() {
+        clearTimeout(timer);
+        const w = parseFloat(getComputedStyle(bar).width);
+        elapsed = 1 - w / barBox.offsetWidth;
+        bar.style.transition = "none";
+        bar.style.width = w + "px";
+        paused = true;
+      }
+
+      function resume() {
+        paused = false;
+        const t = remaining * (1 - elapsed);
+        bar.style.transition = `width ${t}ms linear`;
+        bar.style.width = "0%";
+        timer = setTimeout(change, t);
+      }
+
+      function mainAction() {
+        if (auto) { paused ? resume() : pause(); }
+        else change();
+      }
+
+      function setAuto(on) {
+        auto = on;
+        autoBtn.classList.toggle("active", on);
+        if (on) {
+          paused = false;
+          elapsed = 0;
+          barBox.style.display = "block";
+          timeBox.style.display = "flex";
+          requestWakeLock();
+          change();
+        } else {
+          clearTimeout(timer);
+          paused = false;
+          barBox.style.display = "none";
+          timeBox.style.display = "none";
+          releaseWakeLock();
+        }
+      }
+
+      function toggleExclude() {
+        exclude = !exclude;
+        excludeBtn.classList.toggle("active", exclude);
+      }
+
+      function selectTime(btn) {
+        timeBtns.forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        remaining = parseInt(btn.dataset.time);
+        if (auto && !paused) resetBar();
+      }
+
+      function navTime(dir) {
+        const i = timeBtns.findIndex(b => b.classList.contains("selected"));
+        selectTime(timeBtns[(i + dir + timeBtns.length) % timeBtns.length]);
+      }
+
+      timeBtns.forEach(btn => btn.addEventListener("click", () => selectTime(btn)));
+      $("posDisplay").addEventListener("click", mainAction);
+      excludeBtn.addEventListener("click", (e) => { e.preventDefault(); toggleExclude(); excludeBtn.blur(); });
+      autoBtn.addEventListener("click", (e) => { e.preventDefault(); setAuto(!auto); autoBtn.blur(); });
+      $("posBack").addEventListener("click", (e) => {
+        e.stopPropagation();
+        setAuto(false);
+        showScreen("menu");
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (currentMode !== "position") return;
+        if (e.code === "Space") { e.preventDefault(); mainAction(); }
+        else if (e.code === "KeyE") toggleExclude();
+        else if (e.code === "KeyA") setAuto(!auto);
+        else if (e.code === "ArrowRight") navTime(1);
+        else if (e.code === "ArrowLeft") navTime(-1);
+      });
+
+      window.isPosAuto = () => auto;
+      window.posEnter = change;
+    })();
   </script>
 </body>
 </html>
